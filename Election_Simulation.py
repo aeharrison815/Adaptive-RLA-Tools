@@ -533,7 +533,7 @@ def statisticsData(dataList):
 def collectData(jsonFile, simulationData, margins, flag = 0, simulationType = 2):
     '''
     Summary: Runs the simulation num number of times and averages the data. Records all data in one file: 
-    Lazy_CVR_Data.csv - includes number of ballots pulled, ballots per town, number of precincts flagged for audit, etc.
+    Adaptive_CVR_Data.csv - includes number of ballots pulled, ballots per town, number of precincts flagged for audit, etc.
     Variables contain C if they track data for comparison audits, and P if they track data for polling audits
     Flag parameter set to 0 by default to only conduct a ballot comparison audit; other options is 1 to conduct both polling and comparison audit
     Type 1 for incremental ballot audit, type 2 for rounds
@@ -543,7 +543,7 @@ def collectData(jsonFile, simulationData, margins, flag = 0, simulationType = 2)
     numBallots, overvotes1, undervotes1, overvotes2, undervotes2, riskLimit, num, gamma = dataToValues(simulationData)
 
     #Create CSV file and write header
-    simulation = open('Lazy_CVR_Data.csv', mode = 'w', newline='')
+    simulation = open('Adaptive_CVR_Data.csv', mode = 'w', newline='')
     simulation_writer = csv.writer(simulation)
     simulation_writer.writerow(["Number of ballots", numBallots, "Overvotes", overvotes1 + overvotes2, "Undervotes", undervotes1 + undervotes2, "Number of Simulations", num, "Risk Limit", riskLimit])
 
@@ -578,17 +578,23 @@ def collectData(jsonFile, simulationData, margins, flag = 0, simulationType = 2)
             if (simulationType == 2):
                 initialCSample = E1._comparisonSample()
                 initialPSample = E1._pollingSample() 
+                cballots, csuccess = E1._ballotComparison(initialCSample, initialCSample)
+            else:
+                cballots, csuccess = E1._ballotComparison()
             #Run ballot polling audit
-            if (flag == 1):
-                ballots, success = E1._ballotPolling(initialPSample)
+            if (flag == 1 and simulationType == 2):
+                ballots, success = E1._ballotPolling(initialPSample, initialPSample)
+                numPolling.append(ballots)
+                observedPSuccess += success
+            elif (flag == 1 and simulationType == 1):
+                ballots, success = E1._ballotPolling()
                 numPolling.append(ballots)
                 observedPSuccess += success
             else:
                 numPolling.append(0)
-            #Run ballot comparison audit
-            ballots, success = E1._ballotComparison()
-            numComparison.append(ballots)
-            observedCSuccess += success
+            #Compile comparison audit data
+            numComparison.append(cballots)
+            observedCSuccess += csuccess
             #Get the number of ballots and batches per town and record it into townPlist, townClist, and tabulatorList
             townP, townC, tabulatorSize = E1._ballotsPerTown()
             for town in townP:
